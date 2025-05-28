@@ -1,53 +1,60 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
+# Set Streamlit layout
+st.set_page_config(layout="wide")
 
 # Constants
 CO2_EMISSION_FACTOR = 3.114  # kg CO2 per kg fuel
 
-# User Inputs
-st.title("Vessel Services ROI Calculator")
+st.markdown("<style>div[data-baseweb='input'] input {height: 25px; font-size: 13px;} .stMetric label, .stMetric div {font-size: 16px !important;}</style>", unsafe_allow_html=True)
 
-# Sidebar - Inputs
-with st.sidebar:
-    st.header("Basic Inputs")
-    years = st.slider("Select Service Duration (Years)", 1, 5, 3)
-    months = years * 12
+# Top Section - Inputs
+with st.container():
+    st.markdown("### Input Parameters")
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
 
-    fleet_size = st.number_input("Fleet Size", min_value=1, value=1)
-    fuel_price = st.number_input("Fuel Price ($/MT)", value=550.0)
-    daily_fuel = st.number_input("Daily Fuel Consumption (MT)", value=15.0)
-    op_days = st.number_input("Operating Days per Year", value=200)
-    fuel_inflation = st.number_input("Fuel Cost Inflation (% per Year)", value=4.0) / 100
+    with col1:
+        years = st.slider("Contract Duration (Years)", 1, 5, 3)
+        months = years * 12
+        fleet_size = st.number_input("Fleet Size", min_value=1, value=1)
+        fuel_price = st.number_input("Fuel Price ($/MT)", value=550.0)
+        daily_fuel = st.number_input("Daily Fuel Consumption (MT)", value=15.0)
+        op_days = st.number_input("Operating Days per Year", value=200)
 
-    st.header("Savings & Cost Inputs")
-    saving_hull = st.number_input("Hull & Performance Fuel Saving (%)", value=1.0)
-    saving_voyage = st.number_input("Voyage Optimization Fuel Saving (%)", value=1.0)
-    saving_emission = st.number_input("Emission App Cost Avoidance (%)", value=0.3)
-    saving_scorecard = st.number_input("Vessel Scorecard Cost Avoidance (%)", value=0.2)
-    saving_propulsion = st.number_input("Propulsion Pro Saving (%)", value=0.0)
+    with col2:
+        saving_hull = st.select_slider("Hull & Performance Saving (%)", options=np.arange(0, 5.5, 0.1), value=1.0)
+        saving_voyage = st.select_slider("Voyage Optimization Saving (%)", options=np.arange(0, 5.5, 0.1), value=1.0)
+        saving_emission = st.select_slider("Emission App Avoidance (%)", options=np.arange(0, 5.5, 0.1), value=0.3)
+        saving_scorecard = st.select_slider("Scorecard Avoidance (%)", options=np.arange(0, 5.5, 0.1), value=0.2)
+        saving_propulsion = st.select_slider("Propulsion Saving (%)", options=np.arange(0, 5.5, 0.1), value=0.0)
 
-    cost_hull = st.number_input("Hull App Cost ($)", value=250.0)
-    cost_voyage = st.number_input("Voyage App Cost ($)", value=250.0)
-    cost_emission = st.number_input("Emission App Cost ($)", value=0.0)
-    cost_scorecard = st.number_input("Scorecard App Cost ($)", value=250.0)
-    cost_propulsion = st.number_input("Propulsion App Cost ($)", value=0.0)
+    with col3:
+        cost_hull = st.number_input("Hull App Cost ($)", value=250.0)
+        cost_voyage = st.number_input("Voyage App Cost ($)", value=250.0)
+        cost_emission = st.number_input("Emission App Cost ($)", value=0.0)
+        cost_scorecard = st.number_input("Scorecard App Cost ($)", value=250.0)
+        cost_propulsion = st.number_input("Propulsion App Cost ($)", value=0.0)
+        initial_sub_cost = sum([cost_hull, cost_voyage, cost_emission, cost_scorecard, cost_propulsion])
 
-    st.header("Other Parameters")
-    ramp_up = st.number_input("Ramp-up Delay (Months)", value=6)
-    cleaning_cost = st.number_input("Hull Cleaning Cost ($)", value=15000.0)
-    cleaning_frequency = st.number_input("Frequency of Hull Cleaning (Months)", value=9)
-    one_time_cost = st.number_input("One-time Cost ($)", value=1000.0)
-    crew_cost = st.number_input("Crew Training Cost ($)", value=100.0)
-    monthly_deterioration = st.number_input("Monthly Deterioration (%)", value=0.1) / 100
-    yearly_sub_increase = st.number_input("Yearly Subscription Increase (%)", value=10.0) / 100
-    initial_sub_cost = sum([cost_hull, cost_voyage, cost_emission, cost_scorecard, cost_propulsion])
+    with col4:
+        c4a, c4b = st.columns(2)
+        with c4a:
+            ramp_up = st.number_input("Ramp-up Delay (Months)", value=6)
+            cleaning_cost = st.number_input("Hull Cleaning Cost ($)", value=15000.0)
+            cleaning_frequency = st.number_input("Cleaning Frequency (Months)", value=9)
+        with c4b:
+            one_time_cost = st.number_input("One-time Cost ($)", value=1000.0)
+            crew_cost = st.number_input("Crew Training Cost ($)", value=100.0)
+            monthly_deterioration = st.number_input("Monthly Deterioration (%)", value=0.1) / 100
+            yearly_sub_increase = st.number_input("Yearly Subscription Increase (%)", value=10.0) / 100
+        ramp_up_saving_pct = st.number_input("Ramp-up Saving % of Total", value=20.0) / 100
+        post_cleaning_saving_pct = st.number_input("Post-Hull Cleaning Saving %", value=60.0) / 100
 
-    # Editable variables for savings phases
-    ramp_up_saving_pct = st.number_input("Ramp-up Phase % of Total Saving", value=20.0) / 100
-    post_cleaning_saving_pct = st.number_input("Post-Hull Cleaning % of Total Saving", value=60.0) / 100
-
-# Derived Variables
+# Derived Values
 monthly_fuel_cost_base = fuel_price * daily_fuel * op_days / 12
 
 data = []
@@ -66,7 +73,7 @@ last_cleaning_month = 0
 
 for month in range(1, months + 1):
     if month % 12 == 1 and month > 1:
-        fuel_cost_current *= (1 + fuel_inflation)
+        fuel_cost_current *= (1 + yearly_sub_increase)
         sub_cost *= (1 + yearly_sub_increase)
 
     if month < ramp_up:
@@ -86,7 +93,7 @@ for month in range(1, months + 1):
     cumulative_savings += fuel_saving_dollars
 
     cumulative_sub_cost += sub_cost
-    hull_cleaning = cleaning_cost if ((month - ramp_up) % cleaning_frequency == 0 and month >= ramp_up) else 0
+    hull_cleaning = cleaning_cost if ((month - ramp_up) >= 0 and (month - ramp_up) % cleaning_frequency == 0 and month > ramp_up) else 0
 
     if month == 1:
         other_cost = one_time_cost + crew_cost
