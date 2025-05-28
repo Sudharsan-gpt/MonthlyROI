@@ -1,53 +1,55 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+
+# Set Streamlit layout
+st.set_page_config(layout="wide")
 
 # Constants
 CO2_EMISSION_FACTOR = 3.114  # kg CO2 per kg fuel
 
-# User Inputs
-st.title("Vessel Services ROI Calculator")
+# Top Section - Inputs (Row 1)
+with st.container():
+    st.markdown("### Input Parameters")
+    col1, col2, col3, col4 = st.columns(4)
 
-# Sidebar - Inputs
-with st.sidebar:
-    st.header("Basic Inputs")
-    years = st.slider("Select Service Duration (Years)", 1, 5, 3)
-    months = years * 12
+    with col1:
+        years = st.slider("Contract Duration (Years)", 1, 5, 3)
+        months = years * 12
+        fleet_size = st.number_input("Fleet Size", min_value=1, value=1)
+        fuel_price = st.number_input("Fuel Price ($/MT)", value=550.0)
+        daily_fuel = st.number_input("Daily Fuel Consumption (MT)", value=15.0)
+        op_days = st.number_input("Operating Days per Year", value=200)
 
-    fleet_size = st.number_input("Fleet Size", min_value=1, value=1)
-    fuel_price = st.number_input("Fuel Price ($/MT)", value=550.0)
-    daily_fuel = st.number_input("Daily Fuel Consumption (MT)", value=15.0)
-    op_days = st.number_input("Operating Days per Year", value=200)
-    fuel_inflation = st.number_input("Fuel Cost Inflation (% per Year)", value=4.0) / 100
+    with col2:
+        saving_hull = st.number_input("Hull & Performance Saving (%)", value=1.0)
+        saving_voyage = st.number_input("Voyage Optimization Saving (%)", value=1.0)
+        saving_emission = st.number_input("Emission App Avoidance (%)", value=0.3)
+        saving_scorecard = st.number_input("Scorecard Avoidance (%)", value=0.2)
+        saving_propulsion = st.number_input("Propulsion Saving (%)", value=0.0)
 
-    st.header("Savings & Cost Inputs")
-    saving_hull = st.number_input("Hull & Performance Fuel Saving (%)", value=1.0)
-    saving_voyage = st.number_input("Voyage Optimization Fuel Saving (%)", value=1.0)
-    saving_emission = st.number_input("Emission App Cost Avoidance (%)", value=0.3)
-    saving_scorecard = st.number_input("Vessel Scorecard Cost Avoidance (%)", value=0.2)
-    saving_propulsion = st.number_input("Propulsion Pro Saving (%)", value=0.0)
+    with col3:
+        cost_hull = st.number_input("Hull App Cost ($)", value=250.0)
+        cost_voyage = st.number_input("Voyage App Cost ($)", value=250.0)
+        cost_emission = st.number_input("Emission App Cost ($)", value=0.0)
+        cost_scorecard = st.number_input("Scorecard App Cost ($)", value=250.0)
+        cost_propulsion = st.number_input("Propulsion App Cost ($)", value=0.0)
+        initial_sub_cost = sum([cost_hull, cost_voyage, cost_emission, cost_scorecard, cost_propulsion])
 
-    cost_hull = st.number_input("Hull App Cost ($)", value=250.0)
-    cost_voyage = st.number_input("Voyage App Cost ($)", value=250.0)
-    cost_emission = st.number_input("Emission App Cost ($)", value=0.0)
-    cost_scorecard = st.number_input("Scorecard App Cost ($)", value=250.0)
-    cost_propulsion = st.number_input("Propulsion App Cost ($)", value=0.0)
+    with col4:
+        ramp_up = st.number_input("Ramp-up Delay (Months)", value=6)
+        cleaning_cost = st.number_input("Hull Cleaning Cost ($)", value=15000.0)
+        cleaning_frequency = st.number_input("Cleaning Frequency (Months)", value=9)
+        one_time_cost = st.number_input("One-time Cost ($)", value=1000.0)
+        crew_cost = st.number_input("Crew Training Cost ($)", value=100.0)
+        monthly_deterioration = st.number_input("Monthly Deterioration (%)", value=0.1) / 100
+        yearly_sub_increase = st.number_input("Yearly Subscription Increase (%)", value=10.0) / 100
+        ramp_up_saving_pct = st.number_input("Ramp-up Saving % of Total", value=20.0) / 100
+        post_cleaning_saving_pct = st.number_input("Post-Hull Cleaning Saving %", value=60.0) / 100
 
-    st.header("Other Parameters")
-    ramp_up = st.number_input("Ramp-up Delay (Months)", value=6)
-    cleaning_cost = st.number_input("Hull Cleaning Cost ($)", value=15000.0)
-    cleaning_frequency = st.number_input("Frequency of Hull Cleaning (Months)", value=9)
-    one_time_cost = st.number_input("One-time Cost ($)", value=1000.0)
-    crew_cost = st.number_input("Crew Training Cost ($)", value=100.0)
-    monthly_deterioration = st.number_input("Monthly Deterioration (%)", value=0.1) / 100
-    yearly_sub_increase = st.number_input("Yearly Subscription Increase (%)", value=10.0) / 100
-    initial_sub_cost = sum([cost_hull, cost_voyage, cost_emission, cost_scorecard, cost_propulsion])
-
-    # Editable variables for savings phases
-    ramp_up_saving_pct = st.number_input("Ramp-up Phase % of Total Saving", value=20.0) / 100
-    post_cleaning_saving_pct = st.number_input("Post-Hull Cleaning % of Total Saving", value=60.0) / 100
-
-# Derived Variables
+# Derived Values
 monthly_fuel_cost_base = fuel_price * daily_fuel * op_days / 12
 
 data = []
@@ -66,7 +68,7 @@ last_cleaning_month = 0
 
 for month in range(1, months + 1):
     if month % 12 == 1 and month > 1:
-        fuel_cost_current *= (1 + fuel_inflation)
+        fuel_cost_current *= (1 + yearly_sub_increase)
         sub_cost *= (1 + yearly_sub_increase)
 
     if month < ramp_up:
@@ -113,53 +115,48 @@ for month in range(1, months + 1):
         "Cumulative ROI": f"{roi * 100:.1f}%"
     })
 
-# Final DataFrame
+# DataFrame
 df = pd.DataFrame(data)
-st.subheader("Monthly ROI Table")
-st.dataframe(df, use_container_width=True)
 
-# Summary KPIs
+# KPIs Section
+st.markdown("### Key Results")
+col1, col2, col3, col4, col5 = st.columns(5)
 total_fuel_savings_mt = (df["Fuel Cost Savings"].sum()) / fuel_price
 co2_reduction = total_fuel_savings_mt * CO2_EMISSION_FACTOR
-
-st.subheader("Key Results")
-col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Total Fuel Savings (MT)", f"{total_fuel_savings_mt:,.0f}")
 col2.metric("Fuel Cost Savings ($)", f"{df['Fuel Cost Savings'].sum():,.0f}")
 col3.metric("CO₂ Reduction (kg)", f"{co2_reduction:,.0f}")
 col4.metric("Profit ($)", f"{df['Profit'].iloc[-1]:,.0f}")
 col5.metric("ROI", df['Cumulative ROI'].iloc[-1])
 
-# Charts
-import matplotlib.pyplot as plt
+# Charts Section
+st.markdown("### Charts")
 
-# 1. Area Chart: Savings vs Investment vs Profit
-st.subheader("Savings vs Investment Over Time")
-plt.figure(figsize=(10, 4))
-plt.stackplot(df['Month'], df['Cumulative Total Cost'], df['Cumulative Savings'], df['Profit'],
+fig1, ax1 = plt.subplots(figsize=(10, 4))
+ax1.stackplot(df['Month'], df['Cumulative Total Cost'], df['Cumulative Savings'], df['Profit'],
               labels=['Cumulative Total Cost', 'Cumulative Savings', 'Profit'])
-plt.legend(loc='upper left')
-plt.grid(True)
-plt.xlabel("Month")
-plt.ylabel("USD")
-st.pyplot(plt)
+ax1.legend(loc='upper left')
+ax1.grid(True)
+ax1.set_xlabel("Month")
+ax1.set_ylabel("USD")
+st.pyplot(fig1)
 
-# 2. Area Chart: ROI trend
-st.subheader("ROI Month on Month")
-plt.figure(figsize=(10, 3))
 roi_values = [float(x.strip('%')) for x in df['Cumulative ROI']]
-plt.fill_between(df['Month'], roi_values, step='pre', alpha=0.4)
-plt.plot(df['Month'], roi_values, label='ROI %')
-plt.axhline(0, color='gray', linestyle='--')
-plt.grid(True)
-plt.xlabel("Month")
-plt.ylabel("ROI (%)")
-st.pyplot(plt)
+fig2, ax2 = plt.subplots(figsize=(10, 3))
+ax2.fill_between(df['Month'], roi_values, step='pre', alpha=0.4)
+ax2.plot(df['Month'], roi_values, label='ROI %')
+ax2.axhline(0, color='gray', linestyle='--')
+ax2.grid(True)
+ax2.set_xlabel("Month")
+ax2.set_ylabel("ROI (%)")
+st.pyplot(fig2)
 
-# 3. Total Bar Chart
-st.subheader("Total Savings vs Total Spent Cost")
-fig, ax = plt.subplots()
-ax.bar(["Cumulative Savings", "Cumulative Total Cost"],
-       [df['Cumulative Savings'].iloc[-1], df['Cumulative Total Cost'].iloc[-1]],
-       color=['green', 'red'])
-st.pyplot(fig)
+fig3, ax3 = plt.subplots()
+ax3.bar(["Cumulative Savings", "Cumulative Total Cost"],
+        [df['Cumulative Savings'].iloc[-1], df['Cumulative Total Cost'].iloc[-1]],
+        color=['green', 'red'])
+st.pyplot(fig3)
+
+# Table
+st.markdown("### Detailed Monthly Table")
+st.dataframe(df, use_container_width=True, height=500)
