@@ -93,7 +93,7 @@ for month in range(1, months + 1):
     cumulative_savings += fuel_saving_dollars
 
     cumulative_sub_cost += sub_cost
-    hull_cleaning = cleaning_cost if (month - 1) % cleaning_frequency == 0 else 0
+    hull_cleaning = cleaning_cost if ((month - ramp_up) > 0 and (month - ramp_up) % cleaning_frequency == 0) else 0
 
     if month == 1:
         other_cost = one_time_cost + crew_cost
