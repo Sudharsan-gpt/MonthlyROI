@@ -1,18 +1,21 @@
+# Imports and layout
 import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
-# Set Streamlit layout
 st.set_page_config(layout="wide")
+CO2_EMISSION_FACTOR = 3.114  # kg CO₂ per kg fuel
 
-# Constants
-CO2_EMISSION_FACTOR = 3.114  # kg CO2 per kg fuel
+# Input UI styling
+st.markdown(
+    "<style>div[data-baseweb='input'] input {height: 25px; font-size: 13px;} "
+    ".stMetric label, .stMetric div {font-size: 16px !important;}</style>",
+    unsafe_allow_html=True
+)
 
-st.markdown("<style>div[data-baseweb='input'] input {height: 25px; font-size: 13px;} .stMetric label, .stMetric div {font-size: 16px !important;}</style>", unsafe_allow_html=True)
-
-# Top Section - Inputs
+# Input Parameters
 with st.container():
     st.markdown("### Input Parameters")
     col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
@@ -54,19 +57,16 @@ with st.container():
         ramp_up_saving_pct = st.number_input("Ramp-up Saving % of Total", value=20.0) / 100
         post_cleaning_saving_pct = st.number_input("Post-Hull Cleaning Saving %", value=60.0) / 100
 
-# Derived Values
+# Calculations
 monthly_fuel_cost_base = fuel_price * daily_fuel * op_days / 12
-
 data = []
 total_saving_pct = saving_hull + saving_voyage + saving_emission + saving_scorecard + saving_propulsion
 
 cumulative_sub_cost = 0
 cumulative_savings = 0
 cumulative_total_cost = 0
-
 fuel_cost_current = monthly_fuel_cost_base
 sub_cost = initial_sub_cost
-
 saving_pct = 0
 last_saving_pct = 0
 last_cleaning_month = 0
@@ -88,21 +88,13 @@ for month in range(1, months + 1):
         last_cleaning_month = month
 
     last_saving_pct = saving_pct
-
     fuel_saving_dollars = fuel_cost_current * (saving_pct / 100)
     cumulative_savings += fuel_saving_dollars
-
     cumulative_sub_cost += sub_cost
     hull_cleaning = cleaning_cost if ((month - ramp_up) >= 0 and (month - ramp_up) % cleaning_frequency == 0 and month > ramp_up) else 0
-
-    if month == 1:
-        other_cost = one_time_cost + crew_cost
-    else:
-        other_cost = 0
-
+    other_cost = one_time_cost + crew_cost if month == 1 else 0
     total_monthly_cost = sub_cost + hull_cleaning + other_cost
     cumulative_total_cost += total_monthly_cost
-
     profit = cumulative_savings - cumulative_total_cost
     roi = (profit / cumulative_total_cost) if cumulative_total_cost > 0 else -1
 
@@ -120,53 +112,69 @@ for month in range(1, months + 1):
         "Cumulative ROI": f"{roi * 100:.1f}%"
     })
 
-# Final DataFrame
 df = pd.DataFrame(data)
-st.subheader("Monthly ROI Table")
-st.dataframe(df, use_container_width=True)
 
-# Summary KPIs
-total_fuel_savings_mt = (df["Fuel Cost Savings"].sum()) / fuel_price
-co2_reduction = total_fuel_savings_mt * CO2_EMISSION_FACTOR
-
-st.subheader("Key Results")
+# KPI Cards
+st.markdown("### 📊 Key Metrics")
 col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Total Fuel Savings (MT)", f"{total_fuel_savings_mt:,.0f}")
-col2.metric("Fuel Cost Savings ($)", f"{df['Fuel Cost Savings'].sum():,.0f}")
-col3.metric("CO₂ Reduction (kg)", f"{co2_reduction:,.0f}")
-col4.metric("Profit ($)", f"{df['Profit'].iloc[-1]:,.0f}")
-col5.metric("ROI", df['Cumulative ROI'].iloc[-1])
+total_fuel_savings_mt = df["Fuel Cost Savings"].sum() / fuel_price
+co2_reduction = total_fuel_savings_mt * CO2_EMISSION_FACTOR
+col1.metric("🚢 Fuel Savings (MT)", f"{total_fuel_savings_mt:,.0f}")
+col2.metric("💵 Cost Savings ($)", f"{df['Fuel Cost Savings'].sum():,.0f}")
+col3.metric("🌱 CO₂ Reduction (kg)", f"{co2_reduction:,.0f}")
+col4.metric("💰 Profit ($)", f"{df['Profit'].iloc[-1]:,.0f}")
+col5.metric("📈 ROI", df['Cumulative ROI'].iloc[-1])
 
 # Charts
-import matplotlib.pyplot as plt
+st.markdown("### 📈 Trends")
+col_chart1, col_chart2, col_chart3 = st.columns(3)
+colors = list(mcolors.TABLEAU_COLORS.values())
 
-# 1. Area Chart: Savings vs Investment vs Profit
-st.subheader("Savings vs Investment Over Time")
-plt.figure(figsize=(10, 4))
-plt.stackplot(df['Month'], df['Cumulative Total Cost'], df['Cumulative Savings'], df['Profit'],
-              labels=['Cumulative Total Cost', 'Cumulative Savings', 'Profit'])
-plt.legend(loc='upper left')
-plt.grid(True)
-plt.xlabel("Month")
-plt.ylabel("USD")
-st.pyplot(plt)
+with col_chart1:
+    fig1, ax1 = plt.subplots(figsize=(4.5, 3.5))
+    ax1.fill_between(df['Month'], df['Cumulative Total Cost'], color=colors[0], alpha=0.3, label='Total Cost')
+    ax1.fill_between(df['Month'], df['Cumulative Savings'], color=colors[1], alpha=0.3, label='Savings')
+    ax1.fill_between(df['Month'], df['Profit'], color=colors[2], alpha=0.3, label='Profit')
+    ax1.set_title("Investment, Savings, Profit")
+    ax1.legend()
+    ax1.grid(True)
+    st.pyplot(fig1)
 
-# 2. Area Chart: ROI trend
-st.subheader("ROI Month on Month")
-plt.figure(figsize=(10, 3))
-roi_values = [float(x.strip('%')) for x in df['Cumulative ROI']]
-plt.fill_between(df['Month'], roi_values, step='pre', alpha=0.4)
-plt.plot(df['Month'], roi_values, label='ROI %')
-plt.axhline(0, color='gray', linestyle='--')
-plt.grid(True)
-plt.xlabel("Month")
-plt.ylabel("ROI (%)")
-st.pyplot(plt)
+with col_chart2:
+    roi_values = [float(x.strip('%')) for x in df['Cumulative ROI']]
+    fig2, ax2 = plt.subplots(figsize=(4.5, 3.5))
+    ax2.fill_between(df['Month'], roi_values, color=colors[3], alpha=0.3)
+    ax2.plot(df['Month'], roi_values, color=colors[3], alpha=0.7, label='ROI %')
+    ax2.set_title("ROI % Trend")
+    ax2.grid(True)
+    st.pyplot(fig2)
 
-# 3. Total Bar Chart
-st.subheader("Total Savings vs Total Spent Cost")
-fig, ax = plt.subplots()
-ax.bar(["Cumulative Savings", "Cumulative Total Cost"],
-       [df['Cumulative Savings'].iloc[-1], df['Cumulative Total Cost'].iloc[-1]],
-       color=['green', 'red'])
-st.pyplot(fig)
+with col_chart3:
+    fig3, ax3 = plt.subplots(figsize=(4.5, 3.5))
+    ax3.bar(["Savings", "Cost"],
+            [df['Cumulative Savings'].iloc[-1], df['Cumulative Total Cost'].iloc[-1]],
+            color=["#4CAF50", "#F44336"], alpha=0.8)
+    ax3.set_title("Total Savings vs Cost")
+    st.pyplot(fig3)
+
+# Styled Table
+st.markdown("### 📋 Monthly Table")
+def highlight_profit(val):
+    return 'color: green;' if val > 0 else 'color: red;'
+
+def highlight_roi(val):
+    try:
+        numeric = float(val.strip('%'))
+        return 'color: green;' if numeric > 0 else 'color: red;'
+    except:
+        return ''
+
+styled_df = df.style.set_properties(**{
+    'background-color': '#f9f9f9',
+    'border-color': 'lightgray',
+    'border-style': 'solid',
+    'border-width': '1px'
+}).applymap(highlight_profit, subset=['Profit']) \
+  .applymap(highlight_roi, subset=['Cumulative ROI'])
+
+st.dataframe(styled_df, use_container_width=True, height=500)
