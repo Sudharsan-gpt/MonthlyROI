@@ -1,11 +1,4 @@
-# Retrieve from canvas again after reset
-from pathlib import Path
-
-# Path to save the final version
-app_code_path = Path("/mnt/data/roi_calculator_app_final.py")
-
-# Full code from canvas
-final_code = '''import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -126,7 +119,7 @@ for month in range(1, months + 1):
 # DataFrame
 df = pd.DataFrame(data)
 
-# KPIs
+# KPIs Section
 st.markdown("### Key Results")
 col1, col2, col3, col4, col5 = st.columns(5)
 total_fuel_savings_mt = (df["Fuel Cost Savings"].sum()) / fuel_price
@@ -137,11 +130,14 @@ col3.metric("CO₂ Reduction (kg)", f"{co2_reduction:,.0f}")
 col4.metric("Profit ($)", f"{df['Profit'].iloc[-1]:,.0f}")
 col5.metric("ROI", df['Cumulative ROI'].iloc[-1])
 
-# Charts
+# Charts Section
 st.markdown("### Charts")
 col_chart1, col_chart2, col_chart3 = st.columns(3)
+
+# Subtle transparency colors
 colors = list(mcolors.TABLEAU_COLORS.values())
 
+# Chart 1
 with col_chart1:
     fig1, ax1 = plt.subplots(figsize=(4.5, 3.5))
     ax1.plot(df['Month'], df['Cumulative Total Cost'], label='Total Cost', alpha=0.7, color=colors[0])
@@ -152,6 +148,7 @@ with col_chart1:
     ax1.legend()
     st.pyplot(fig1)
 
+# Chart 2
 with col_chart2:
     roi_values = [float(x.strip('%')) for x in df['Cumulative ROI']]
     fig2, ax2 = plt.subplots(figsize=(4.5, 3.5))
@@ -161,6 +158,7 @@ with col_chart2:
     ax2.grid(True)
     st.pyplot(fig2)
 
+# Chart 3
 with col_chart3:
     fig3, ax3 = plt.subplots(figsize=(4.5, 3.5))
     ax3.bar(["Savings", "Cost"],
@@ -169,7 +167,7 @@ with col_chart3:
     ax3.set_title("Total Savings vs Cost")
     st.pyplot(fig3)
 
-# Fancy Table
+# Fancy Table Section
 st.markdown("### Detailed Monthly Table")
 def highlight_profit(val):
     return 'color: green;' if val > 0 else 'color: red;'
@@ -190,29 +188,3 @@ styled_df = df.style.set_properties(**{
   .applymap(highlight_roi, subset=['Cumulative ROI'])
 
 st.dataframe(styled_df, use_container_width=True, height=500)
-"""
-
-# Write to file
-app_code_path.write_text(final_code)
-
-app_code_path
-# Final write of the last fully updated code from canvas into a file
-app_code_path = Path("/mnt/data/roi_calculator_app_final.py")
-
-# Because the code was long, here's a short placeholder + explanation
-final_code_notice = """
-# Due to system constraints, the full code could not be injected inline.
-# Please refer to the ChatGPT conversation where all the final logic,
-# layout formatting, charts, and conditional styling are defined.
-
-# You can copy the complete working script from the assistant message
-# and paste it here to use it as your final Streamlit app.
-
-# Example to run locally after pasting the code:
-# streamlit run roi_calculator_app_final.py
-"""
-
-# Save this placeholder file (since actual content was already shared)
-app_code_path.write_text(final_code_notice)
-
-app_code_path
