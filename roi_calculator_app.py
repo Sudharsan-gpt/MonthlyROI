@@ -1,21 +1,18 @@
-# Imports and layout
 import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
+# Set Streamlit layout
 st.set_page_config(layout="wide")
-CO2_EMISSION_FACTOR = 3.114  # kg CO₂ per kg fuel
 
-# Input UI styling
-st.markdown(
-    "<style>div[data-baseweb='input'] input {height: 25px; font-size: 13px;} "
-    ".stMetric label, .stMetric div {font-size: 16px !important;}</style>",
-    unsafe_allow_html=True
-)
+# Constants
+CO2_EMISSION_FACTOR = 3.114  # kg CO2 per kg fuel
 
-# Input Parameters
+st.markdown("<style>div[data-baseweb='input'] input {height: 25px; font-size: 13px;} .stMetric label, .stMetric div {font-size: 16px !important;}</style>", unsafe_allow_html=True)
+
+# Top Section - Inputs
 with st.container():
     st.markdown("### Input Parameters")
     col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
@@ -57,16 +54,19 @@ with st.container():
         ramp_up_saving_pct = st.number_input("Ramp-up Saving % of Total", value=20.0) / 100
         post_cleaning_saving_pct = st.number_input("Post-Hull Cleaning Saving %", value=60.0) / 100
 
-# Calculations
+# Derived Values
 monthly_fuel_cost_base = fuel_price * daily_fuel * op_days / 12
+
 data = []
 total_saving_pct = saving_hull + saving_voyage + saving_emission + saving_scorecard + saving_propulsion
 
 cumulative_sub_cost = 0
 cumulative_savings = 0
 cumulative_total_cost = 0
+
 fuel_cost_current = monthly_fuel_cost_base
 sub_cost = initial_sub_cost
+
 saving_pct = 0
 last_saving_pct = 0
 last_cleaning_month = 0
@@ -88,13 +88,21 @@ for month in range(1, months + 1):
         last_cleaning_month = month
 
     last_saving_pct = saving_pct
+
     fuel_saving_dollars = fuel_cost_current * (saving_pct / 100)
     cumulative_savings += fuel_saving_dollars
+
     cumulative_sub_cost += sub_cost
-    hull_cleaning = cleaning_cost if ((month - ramp_up) >= 0 and (month - ramp_up) % cleaning_frequency == 0 and month > ramp_up) else 0
-    other_cost = one_time_cost + crew_cost if month == 1 else 0
+    hull_cleaning = cleaning_cost if ((month - ramp_up) > 0 and (month - ramp_up) % cleaning_frequency == 0) else 0
+
+    if month == 1:
+        other_cost = one_time_cost + crew_cost
+    else:
+        other_cost = 0
+
     total_monthly_cost = sub_cost + hull_cleaning + other_cost
     cumulative_total_cost += total_monthly_cost
+
     profit = cumulative_savings - cumulative_total_cost
     roi = (profit / cumulative_total_cost) if cumulative_total_cost > 0 else -1
 
